@@ -1,0 +1,194 @@
+package edu.colostate.cnrl.sim.neo4j;
+
+import org.neo4j.graphdb.*;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.logging.Log;
+import org.neo4j.procedure.Context;
+import org.neo4j.procedure.Name;
+import org.neo4j.procedure.Procedure;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Stream;
+
+public class SimilarityMeasure {
+
+    @Context
+    public GraphDatabaseAPI db;
+
+    @Context
+    public Log log;
+
+    @Procedure("cnrl.similarityMeasure")
+    public Stream<NodeListResult> similarityMeasure(@Name("similarityScore") double similarityScore,
+                                                    @Name("redFlagMultiple") double redFlagMultiple){
+
+        List<Node> queryGraph = initializeQueryGraph();
+        List<List<Node>> resultSet = graphSimilarityMeasure(queryGraph, similarityScore, redFlagMultiple);
+
+        return resultSet.stream().map(nodeList -> new NodeListResult(nodeList));
+//        return queryGraph.stream().map(node -> new NodeResult(node));
+    }
+
+    private List<List<Node>> graphSimilarityMeasure(List<Node> queryGraph, double similarityScore, double redFlagMultiple) {
+
+        Label queryFocusLabel = getQueryFocusLabel(queryGraph);
+
+        //remove query focus node
+        queryGraph.remove(0);
+
+        List<List<Node>> matchedGraphs = new ArrayList<>();
+
+        //get all query focus set
+        ResourceIterator<Node> qfNodes = db.findNodes(queryFocusLabel);
+
+        while (qfNodes.hasNext()) {
+
+            Node qfNode = qfNodes.next();
+            List<Node> matchedGraph = searchNeighbourNodes(qfNode, queryGraph, similarityScore, redFlagMultiple);
+            if(matchedGraph != null){
+                matchedGraphs.add(matchedGraph);
+            }
+        }
+        return matchedGraphs;
+    }
+
+    private Label getQueryFocusLabel(List<Node> queryGraph) {
+        Label queryFocusLabel = null;
+
+        //Get all queryFocus nodes
+        Iterable<Label> iteratorLabel = queryGraph.get(0).getLabels(); //Assume first query node is the query focus node
+
+        //Assume there is only one label in query focus node
+        for(Label label : iteratorLabel){
+            queryFocusLabel = label;
+        }
+        return queryFocusLabel;
+    }
+
+    private List<Node> searchNeighbourNodes(Node node, List<Node> queryGraph, double similarityScore, double redFlagMultiple) {
+
+        Iterator<Relationship> relationships = node.getRelationships(Direction.OUTGOING).iterator();
+
+        double totalWeight = getTotalWeight(queryGraph, redFlagMultiple);
+        int match = 0;
+
+        List<Node> matchedList = new ArrayList<>();
+        matchedList.add(node);
+
+        while (relationships.hasNext()) {
+
+            Relationship relationship = relationships.next();
+            RelationshipType relationshipType = relationship.getType();
+
+            if(relationshipType.name().equals("WRITES")){ //avoid FRIENDS relationships
+                Node neighborNode = relationship.getOtherNode(node);
+                matchedList.add(neighborNode);
+
+                for(Node queryNode : queryGraph){
+
+                    //queryNodes has oneLabel
+                    Label queryLabel = null;
+                    for(Label qLabel : queryNode.getLabels()){
+                        queryLabel = qLabel;
+                    }
+
+                    boolean hasLabel = neighborNode.hasLabel(queryLabel);
+                    String neighborNodeName = (String)neighborNode.getProperty("name");
+                    String neighborNodeType = (String)neighborNode.getProperty("type");
+                    String queryNodeName = (String)queryNode.getProperty("name");
+
+                    if(hasLabel &&
+                            (neighborNodeName).equals(queryNodeName)){
+
+                        if(neighborNodeType.equals("RF")){
+                            match += redFlagMultiple;
+                        }
+                        else{
+                            match += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        double matchingScore = (double)match/totalWeight;
+
+        if(matchingScore >= similarityScore){
+            return matchedList;
+        }
+        else{
+            return null;
+        }
+
+    }
+
+    private double getTotalWeight(List<Node> queryGraph, double redFlagMultiple) {
+
+        double matchScore = 0;
+
+        for(Node node : queryGraph){
+            String nodeType = (String)node.getProperty("type");
+            if(nodeType.equals("RF")){
+                matchScore += redFlagMultiple;
+            }
+            else{
+                matchScore += 1;
+            }
+        }
+        return matchScore;
+    }
+
+    public class NodeResult {
+
+        public final Node node;
+
+        public NodeResult(Node node) {
+            this.node = node;
+        }
+    }
+
+    /**
+     * Find the outgoing neighbors of a node in the Neo4j database,
+     */
+    private ArrayList<Node> findOutNodeNeighbors(Node node) {//find the neighbors of a node in the Neo4j database
+
+        ArrayList<Node> neighborsOfnode = new ArrayList<>();
+
+        Iterator<Relationship> relationships = node.getRelationships(Direction.OUTGOING).iterator();
+
+        while (relationships.hasNext()) {
+
+            Node neighborNode = relationships.next().getOtherNode(node);
+            neighborsOfnode.add(neighborNode);
+        }
+        return neighborsOfnode;
+    }
+
+    private List<Node> initializeQueryGraph() {
+
+        long weblogId = 2253;
+
+        /*Query graph also sho*/
+        List<Node> queryGraph = new ArrayList<>();
+        Node qf =  db.getNodeById(weblogId);
+        queryGraph.add(qf);
+
+        Iterator<Relationship> relationships = qf.getRelationships(Direction.OUTGOING).iterator();
+        while (relationships.hasNext()) {
+
+            Relationship relationship = relationships.next();
+
+            RelationshipType relationshipType = relationship.getType();
+
+            if(relationshipType.name().equals("WRITES")){ //avoid FRIENDS relationships
+                Node neighborNode = relationship.getOtherNode(qf);
+                queryGraph.add(neighborNode);
+            }
+
+        }
+        return queryGraph;
+    }
+
+}
