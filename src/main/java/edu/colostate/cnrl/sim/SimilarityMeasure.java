@@ -24,7 +24,7 @@ public class SimilarityMeasure {
     public Stream<NodeListResult> similarityMeasure(@Name("similarityScore") double similarityScore,
                                                     @Name("redFlagMultiple") double redFlagMultiple){
 
-        List<Node> queryGraph = initializeQueryGraph();
+        QueryGraphResult queryGraph = initializeQueryGraph();
         List<Config> configList = readConfigurations();
 
         List<List<Node>> resultSet = graphSimilarityMeasure(queryGraph, similarityScore, redFlagMultiple, configList);
@@ -68,8 +68,10 @@ public class SimilarityMeasure {
         return configList;
     }
 
-    private List<List<Node>> graphSimilarityMeasure(List<Node> queryGraph, double similarityScore,
+    private List<List<Node>> graphSimilarityMeasure(QueryGraphResult queryGraphResult, double similarityScore,
                                                     double redFlagMultiple, List<Config> configList) {
+
+        List<Node> queryGraph = queryGraphResult.getAllNodes();
 
         Label queryFocusLabel = getQueryFocusLabel(queryGraph);
 
@@ -293,46 +295,48 @@ public class SimilarityMeasure {
         return neighborsOfnode;
     }
 
-    private List<Node> initializeQueryGraph() {
+    private QueryGraphResult initializeQueryGraph() {
 
+        QueryGraphResult results = new QueryGraphResult();
         long userId = 353;
 
-        /*get root node*/
         List<Node> queryGraph = new LinkedList<>();
-        Node qf =  db.getNodeById(userId);
+        List<Node> activityNodesGraph = new LinkedList<>();
 
-        NodeDetail rootNodeDetail = new NodeDetail(qf);
+        /*get root node*/
+        Node qf =  db.getNodeById(userId);
         queryGraph.add(qf);
 
-        List<NodeDetail> nodeQueue = new LinkedList<>();
-        ((LinkedList<NodeDetail>) nodeQueue).push(rootNodeDetail);
+        List<Node> nodeQueue = new LinkedList<>();
+        ((LinkedList<Node>) nodeQueue).push(qf);
 
         while(nodeQueue.size() != 0){
 
-            NodeDetail popNodeDetail = ((LinkedList<NodeDetail>) nodeQueue).pop();
-            Iterator<Relationship> relationships = popNodeDetail.getNode().getRelationships(Direction.OUTGOING).iterator();
+            Node popNode = ((LinkedList<Node>) nodeQueue).pop();
+            Iterator<Relationship> relationships = popNode.getRelationships(Direction.OUTGOING).iterator();
 
             while (relationships.hasNext()) {
-
-                //node has other out edges - not a leaf node
-                popNodeDetail.setNotLeafNode(true);
 
                 Relationship relationship = relationships.next();
                 RelationshipType relationshipType = relationship.getType();
 
                 if(!relationshipType.name().equals("FRIENDS")){ //avoid FRIENDS relationships
-                    Node neighborNode = relationship.getOtherNode(popNodeDetail.getNode());
-                    NodeDetail neighborNodeDetail = new NodeDetail(neighborNode);
+                    Node neighborNode = relationship.getOtherNode(popNode);
 
-                    ((LinkedList<NodeDetail>) nodeQueue).push(neighborNodeDetail);
+                    ((LinkedList<Node>) nodeQueue).push(neighborNode);
                     queryGraph.add(neighborNode);
+                    if(getNodeLabelName(neighborNode).equals("Blog")){
+                        activityNodesGraph.add(neighborNode);
+                    }
 
                 }
 
             }
         }
+        results.setAllNodes(queryGraph);
+        results.setActivityNodes(activityNodesGraph);
 
-        return queryGraph;
+        return results;
     }
 
 }
