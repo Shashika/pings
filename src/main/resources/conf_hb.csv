@@ -1,0 +1,5 @@
+node,User,null
+node,Topic,name
+property,knows,FOLLOWS
+property,indicator,Topic
+property,indicator_match,name

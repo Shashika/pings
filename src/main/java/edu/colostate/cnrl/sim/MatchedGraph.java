@@ -6,27 +6,31 @@ import java.util.List;
 
 public class MatchedGraph {
 
-    private List<Node> matchedGraph;
-    private double matchedScore;
+    private List<Node> allNodes;
+    private List<Node> activityNodes;
+    private double matchScore;
 
-    public MatchedGraph(List<Node> matchedGraph, double matchedScore) {
-        this.matchedGraph = matchedGraph;
-        this.matchedScore = matchedScore;
+    public List<Node> getAllNodes() {
+        return allNodes;
     }
 
-    public List<Node> getMatchedGraph() {
-        return matchedGraph;
+    public void setAllNodes(List<Node> allNodes) {
+        this.allNodes = allNodes;
     }
 
-    public void setMatchedGraph(List<Node> matchedGraph) {
-        this.matchedGraph = matchedGraph;
+    public List<Node> getActivityNodes() {
+        return activityNodes;
     }
 
-    public double getMatchedScore() {
-        return matchedScore;
+    public void setActivityNodes(List<Node> activityNodes) {
+        this.activityNodes = activityNodes;
     }
 
-    public void setMatchedScore(double matchedScore) {
-        this.matchedScore = matchedScore;
+    public double getMatchScore() {
+        return matchScore;
+    }
+
+    public void setMatchScore(double matchScore) {
+        this.matchScore = matchScore;
     }
 }

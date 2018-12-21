@@ -20,17 +20,30 @@ public class SimilarityMeasure {
     @Context
     public Log log;
 
+    private static double redFlagMultiple = 0;
+    private static Label queryLabel = null;
+    private static Label queryFocusLabel = null;
+    private static List<Config> configList = null;
+    private static Map<String, String> properties = null;
+
     @Procedure("cnrl.similarityMeasure")
     public Stream<NodeListResult> similarityMeasure(@Name("similarityScore") double similarityScore,
-                                                    @Name("redFlagMultiple") double redFlagMultiple){
+                                                    @Name("redFlagMultiple") double redFlagMultiple,
+                                                    @Name("queryLabel") String queryLabel,
+                                                    @Name("queryForcusLabel") String queryFocusLabel){
+
+        this.redFlagMultiple = redFlagMultiple;
+        this.queryLabel = Label.label(queryLabel);
+        this.queryFocusLabel = Label.label(queryFocusLabel);
+        this.configList = readConfigurations();
+        this.properties = readProperties(this.configList);
 
         QueryGraphResult queryGraph = initializeQueryGraph();
-        List<Config> configList = readConfigurations();
 
         List<List<Node>> resultSet = graphSimilarityMeasure(queryGraph, similarityScore, redFlagMultiple, configList);
 
         return resultSet.stream().map(nodeList -> new NodeListResult(nodeList));
-//        return queryGraph.stream().map(node -> new NodeResult(node));
+//        return queryGraph.getAllNodes().stream().map(node -> new NodeResult(node));
     }
 
     private List<Config> readConfigurations() {
@@ -68,12 +81,23 @@ public class SimilarityMeasure {
         return configList;
     }
 
+    private Map<String, String> readProperties(List<Config> configList) {
+
+        Map<String, String> propertyList = new HashMap<>();
+
+        for(Config config : configList){
+            if(config.getType().equals("property")){
+                propertyList.put(config.getLabel(), config.getProperty());
+            }
+        }
+
+        return propertyList;
+    }
+
     private List<List<Node>> graphSimilarityMeasure(QueryGraphResult queryGraphResult, double similarityScore,
                                                     double redFlagMultiple, List<Config> configList) {
 
         List<Node> queryGraph = queryGraphResult.getAllNodes();
-
-        Label queryFocusLabel = getQueryFocusLabel(queryGraph);
 
         List<List<Node>> matchedGraphs = new ArrayList<>();
 
@@ -81,18 +105,27 @@ public class SimilarityMeasure {
         ResourceIterator<Node> qfNodes = db.findNodes(queryFocusLabel);
         double totalWeight = getTotalWeight(queryGraph, redFlagMultiple);
 
+        int limit = 0;
         while (qfNodes.hasNext()) {
             Node qfNode = qfNodes.next();
-            List<Node> matchedGraph = searchNeighbourNodes(qfNode, queryGraph, redFlagMultiple, configList);
+            MatchedGraph matchedGraph = searchSimilarGraphs(qfNode, queryGraph, configList);
 
             if(matchedGraph!= null){
 
-                double score = getTotalWeight(matchedGraph, redFlagMultiple)/totalWeight;
-//                double score = (double) matchedGraph.getMatchedGraph().size()/queryGraph.size();
+                double score = matchedGraph.getMatchScore()/totalWeight;
 
                 if(score >= similarityScore){
-                    matchedGraphs.add(matchedGraph);
+                    matchedGraphs.add(matchedGraph.getAllNodes());
                 }
+//                else{
+//                    List<Node> neighbourNodes = searchForLinkedNeighbourNodes(matchedGraph.getAllNodes());
+//                    List<List<Node>> neighbourMatchedGraphs = getNeighbourMatchedGraphs(neighbourNodes, queryGraphResult, configList, matchedGraph, similarityScore);
+//                    if(neighbourMatchedGraphs != null){
+//
+//                            matchedGraphs.addAll(neighbourMatchedGraphs);
+//
+//                    }
+//                }
             }
         }
         return matchedGraphs;
@@ -111,10 +144,12 @@ public class SimilarityMeasure {
         return queryFocusLabel;
     }
 
-    private List<Node> searchNeighbourNodes(Node matchingRootNode, List<Node> queryGraph,
-                                              double redFlagMultiple, List<Config> configList) {
+    private MatchedGraph searchSimilarGraphs(Node matchingRootNode, List<Node> queryGraph, List<Config> configList) {
 
-        List<Node> matchedGraph = new LinkedList<>();
+        MatchedGraph matchedGraph = new MatchedGraph();
+        List<Node> allMatchedNodes = new LinkedList<>();
+        List<Node> activityNodes = new LinkedList<>();
+
         List<Node> dataGraph = new CopyOnWriteArrayList<>();
         dataGraph.add(matchingRootNode);
 
@@ -125,10 +160,7 @@ public class SimilarityMeasure {
 
             for (Node dataNode : dataGraph) {
 
-                if (matchNode(queryNode, dataNode, configList, matchedGraph, true)) {
-
-                    //remove matched node
-                    dataGraph.remove(dataNode);
+                if (matchNode(queryNode, dataNode, configList, matchedGraph, allMatchedNodes, activityNodes, true)) {
 
                     Iterator<Relationship> queryRelationships = queryNode.getRelationships(Direction.OUTGOING).iterator();
                     while (queryRelationships.hasNext()) {
@@ -138,17 +170,22 @@ public class SimilarityMeasure {
 
                         while (dataRelationships.hasNext()) {
                             Relationship dataRelationship = dataRelationships.next();
-                            Node matchedEndNode = matchEdge(queryRelationship, dataRelationship, configList, matchedGraph);
+                            Node matchedEndNode = matchEdge(queryRelationship, dataRelationship, configList, matchedGraph, allMatchedNodes, activityNodes);
 
                             if(matchedEndNode != null && !isMatchedNodeAlreadyInList(matchedNodeList, matchedEndNode)){
                                 matchedNodeList.add(matchedEndNode);
                             }
                         }
                     }
+                    //remove matched node
+                    dataGraph.remove(dataNode);
                 }
             }
             addNewMatchedListToDataGraph(dataGraph, matchedNodeList);
         }
+        matchedGraph.setAllNodes(allMatchedNodes);
+        matchedGraph.setActivityNodes(activityNodes);
+
         return matchedGraph;
     }
 
@@ -174,7 +211,7 @@ public class SimilarityMeasure {
     }
 
     private Node matchEdge(Relationship queryRelationship, Relationship dataRelationship,
-                                List<Config> configList, List<Node> matchedGraph) {
+                                List<Config> configList, MatchedGraph matchedGraph, List<Node> allMatchedNodes, List<Node> activityNodes) {
 
         RelationshipType queryRelationshipType = queryRelationship.getType();
         RelationshipType dataRelationshipType = dataRelationship.getType();
@@ -190,7 +227,7 @@ public class SimilarityMeasure {
             Node queryEndNode = queryRelationship.getEndNode();
             dataEndNode = dataRelationship.getEndNode();
 
-            isMatched = matchNode(queryEndNode, dataEndNode, configList, matchedGraph, false);
+            isMatched = matchNode(queryEndNode, dataEndNode, configList, matchedGraph, allMatchedNodes, activityNodes, false);
         }
 
         if(isMatched){
@@ -209,8 +246,8 @@ public class SimilarityMeasure {
     }
 
     //There are two matches in nodes - label & name
-    private boolean matchNode(Node queryNode, Node dataNode, List<Config> configList,
-                              List<Node> matchedGraph, boolean isAddtoMatchedGraph) {
+    private boolean matchNode(Node queryNode, Node dataNode, List<Config> configList, MatchedGraph matchedGraph,
+                              List<Node> allMatchedNodes, List<Node> activityNodes, boolean isAddtoMatchedNodes) {
 
         boolean isMatched = false;
         boolean isFoundConfig = false;
@@ -250,8 +287,13 @@ public class SimilarityMeasure {
             }
         }
 
-        if(isAddtoMatchedGraph && isMatched){
-            matchedGraph.add(dataNode);
+        if(isAddtoMatchedNodes && isMatched){
+            allMatchedNodes.add(dataNode);
+
+            if(getNodeLabelName(dataNode).equals(getPropertyValue("indicator"))){
+                activityNodes.add(dataNode);
+                matchedGraph.setMatchScore(matchedGraph.getMatchScore() + getMatchedNodeWeight(dataNode));
+            }
         }
 
         return isMatched;
@@ -264,7 +306,7 @@ public class SimilarityMeasure {
         for(Node node : graph){
 
             //similarity measure calculates only for activity nodes
-            if(getNodeLabelName(node).equals("Blog")){
+            if(getNodeLabelName(node).equals(getPropertyValue("indicator"))){
 
                 String nodeType = (String)node.getProperty("type");
                 if(nodeType.equals("RF")){
@@ -276,6 +318,17 @@ public class SimilarityMeasure {
             }
         }
         return matchScore;
+    }
+
+    private double getMatchedNodeWeight(Node node) {
+
+        String nodeType = (String)node.getProperty("type");
+        if(nodeType.equals("RF")){
+            return this.redFlagMultiple;
+        }
+        else{
+            return  1;
+        }
     }
 
     /**
@@ -298,14 +351,22 @@ public class SimilarityMeasure {
     private QueryGraphResult initializeQueryGraph() {
 
         QueryGraphResult results = new QueryGraphResult();
-        long userId = 353;
+
+        ResourceIterator<Node> qfNodes = db.findNodes(queryFocusLabel);
 
         List<Node> queryGraph = new LinkedList<>();
         List<Node> activityNodesGraph = new LinkedList<>();
 
+        Node qf = null;
         /*get root node*/
-        Node qf =  db.getNodeById(userId);
-        queryGraph.add(qf);
+        while (qfNodes.hasNext()) {
+            Node qfNode = qfNodes.next();
+            if(qfNode.hasLabel(queryLabel)){
+                qf = qfNode;
+                queryGraph.add(qfNode);
+                break;
+            }
+        }
 
         List<Node> nodeQueue = new LinkedList<>();
         ((LinkedList<Node>) nodeQueue).push(qf);
@@ -320,23 +381,146 @@ public class SimilarityMeasure {
                 Relationship relationship = relationships.next();
                 RelationshipType relationshipType = relationship.getType();
 
-                if(!relationshipType.name().equals("FRIENDS")){ //avoid FRIENDS relationships
+                if(!relationshipType.name().equals(getPropertyValue("knows"))){
                     Node neighborNode = relationship.getOtherNode(popNode);
 
-                    ((LinkedList<Node>) nodeQueue).push(neighborNode);
-                    queryGraph.add(neighborNode);
-                    if(getNodeLabelName(neighborNode).equals("Blog")){
-                        activityNodesGraph.add(neighborNode);
+                    if(neighborNode.hasLabel(queryLabel)){
+                        ((LinkedList<Node>) nodeQueue).push(neighborNode);
+                        queryGraph.add(neighborNode);
+                        if(getNodeLabelName(neighborNode).equals(getPropertyValue("indicator"))){
+                            activityNodesGraph.add(neighborNode);
+                        }
                     }
-
                 }
-
             }
         }
         results.setAllNodes(queryGraph);
         results.setActivityNodes(activityNodesGraph);
 
         return results;
+    }
+
+    private String getPropertyValue(String key) {
+        return this.properties.get(key);
+    }
+
+    private List<Node> searchForLinkedNeighbourNodes(List<Node> graph) {
+
+        List<Node> qfList = new ArrayList<>();
+        Node rootNode = graph.get(0);
+        qfList.add(rootNode);
+
+        Iterator<Relationship> relationships = rootNode.getRelationships(Direction.OUTGOING).iterator();
+
+        while (relationships.hasNext()) {
+
+            Relationship relationship = relationships.next();
+
+            if(relationship.getType().name().equals(getPropertyValue("knows"))){
+                Node neighborNode = relationship.getOtherNode(rootNode);
+                qfList.add(neighborNode);
+            }
+        }
+        return qfList;
+    }
+
+    private List<List<Node>> getNeighbourMatchedGraphs(List<Node> neighbourNodes, QueryGraphResult queryResult,
+                                           List<Config> configList, MatchedGraph initialMatchedGraph, double similarityScore) {
+
+        int[] initialVotes = updateVotes(queryResult.getActivityNodes(), initialMatchedGraph.getActivityNodes());
+        int[] activityVotes = initialVotes;
+
+        //avoid exact matches with single user
+        List<List<Node>> eligibleNeighbourGraphList = new LinkedList<>();
+        eligibleNeighbourGraphList.add(initialMatchedGraph.getAllNodes());
+
+        for(Node node : neighbourNodes ){
+
+            MatchedGraph matchedGraph = searchSimilarGraphs(node, queryResult.getAllNodes(), configList);
+            int nodeVotes[] = updateVotes(queryResult.getActivityNodes(), matchedGraph.getActivityNodes());
+
+            if(checkVoteEligibility(initialVotes, nodeVotes) && !checkIndividualStrength(nodeVotes, similarityScore)){
+                activityVotes = applyForVotes(activityVotes, nodeVotes);
+                eligibleNeighbourGraphList.add(matchedGraph.getAllNodes());
+            }
+        }
+
+        if(getTotalVoteScore(activityVotes) >= similarityScore){
+            return eligibleNeighbourGraphList;
+        }
+        else {
+            return null;
+        }
+    }
+
+    private boolean checkIndividualStrength(int[] nodeVotes, double similarityScore) {
+
+        double count = 0;
+        for(int i = 0; i < nodeVotes.length; i++){
+            if(nodeVotes[i] == 1){
+                count += nodeVotes[i];
+            }
+        }
+        double individualScore = count/nodeVotes.length;
+
+        if(individualScore >= similarityScore){
+            return true;
+        }
+        return false;
+    }
+
+    private double getTotalVoteScore(int[] activityVotes) {
+
+        double count = 0;
+
+        for(int i = 0; i < activityVotes.length; i++){
+            if(activityVotes[i] != 0){
+                count += activityVotes[i];
+            }
+        }
+        return count/activityVotes.length;
+    }
+
+    private int[] applyForVotes(int[] activityVotes, int[] nodeVotes) {
+
+        for(int i = 0; i < activityVotes.length; i++){
+            if(activityVotes[i] == 0 && nodeVotes[i] == 1){
+                activityVotes[i] = 1;
+            }
+        }
+        return activityVotes;
+    }
+
+    private boolean checkVoteEligibility(int[] initialVotes, int[] nodeVotes) {
+
+        boolean isEligible = false;
+
+        for(int i = 0; i < initialVotes.length; i++){
+            if(initialVotes[i] == 0 && nodeVotes[i] == 1){
+                isEligible = true;
+            }
+        }
+        return isEligible;
+    }
+
+    private int[] updateVotes(List<Node> activityNodes, List<Node> matchedActivityNodes) {
+
+        int[] votes = new int[activityNodes.size()];
+        int i = 0;
+        for(Node node : activityNodes){
+            String nodeName = (String) node.getProperty(getPropertyValue("indicator_match"));
+
+            for(Node matchedNode : matchedActivityNodes){
+
+                String matchedNodeName = (String) matchedNode.getProperty(getPropertyValue("indicator_match"));
+                if(nodeName.toLowerCase().equals(matchedNodeName.toLowerCase())){
+                    votes[i] = 1;
+                    break;
+                }
+            }
+            i++;
+        }
+        return votes;
     }
 
 }

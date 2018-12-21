@@ -1,3 +1,6 @@
 node,User,null
 node,Weblog,null
 node,Blog,name
+property,knows,FRIENDS
+property,indicator,Blog
+property,indicator_match,name
