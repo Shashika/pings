@@ -256,34 +256,36 @@ public class SimilarityMeasure {
         String queryLabel = getNodeLabelName(queryNode);
         String dataLabel = getNodeLabelName(dataNode);
 
-        //get similarity configs
-        for(Config con: configList){
+        if(queryLabel.equals(dataLabel)){
+            //get similarity configs
+            for(Config con: configList){
 
-            if(con.getType().equals("node") && con.getLabel().equals(queryLabel)){
+                if(con.getType().equals("node") && con.getLabel().equals(queryLabel)){
 
-                isFoundConfig = true;
+                    isFoundConfig = true;
 
-                if(con.getProperty() == null){
-                    //match label only
-                    if(dataLabel.toLowerCase().equals(queryLabel.toLowerCase())){
-                        isMatched = true;
+                    if(con.getProperty() == null){
+                        //match label only
+                        if(dataLabel.toLowerCase().equals(queryLabel.toLowerCase())){
+                            isMatched = true;
+                        }
+                    }
+                    else{
+                        String confPropertyName = con.getProperty();
+                        String queryPropertyName = (String)queryNode.getProperty(confPropertyName);
+                        String dataPropertyName = (String)dataNode.getProperty(confPropertyName);
+
+                        //match both label and property
+                        if(dataLabel.toLowerCase().equals(queryLabel.toLowerCase())
+                                && dataPropertyName.toLowerCase().equals(queryPropertyName.toLowerCase())){
+                            isMatched = true;
+                        }
                     }
                 }
-                else{
-                    String confPropertyName = con.getProperty();
-                    String queryPropertyName = (String)queryNode.getProperty(confPropertyName);
-                    String dataPropertyName = (String)dataNode.getProperty(confPropertyName);
 
-                    //match both label and property
-                    if(dataLabel.toLowerCase().equals(queryLabel.toLowerCase())
-                            && dataPropertyName.toLowerCase().equals(queryPropertyName.toLowerCase())){
-                        isMatched = true;
-                    }
+                if(isFoundConfig){
+                    break;
                 }
-            }
-
-            if(isFoundConfig){
-                break;
             }
         }
 
