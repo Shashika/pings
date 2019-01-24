@@ -1,0 +1,7 @@
+node,User,null
+node,Indicator,name
+node,SM_Account,type
+node,Post,type
+property,knows,KNOWS
+property,indicator,Indicator
+property,indicator_match,name
