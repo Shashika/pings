@@ -51,7 +51,7 @@ public class SimilarityMeasure {
         String line = "";
         String cvsSplitBy = ",";
 
-        InputStream in = getClass().getResourceAsStream("/conf.csv");
+        InputStream in = getClass().getResourceAsStream("/conf_rad.csv");
         BufferedReader br = new BufferedReader(new InputStreamReader(in));
 
         List<Config> configList = new ArrayList<>();
