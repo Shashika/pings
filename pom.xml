@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>edu.colostate.cnrl.sim</groupId>
-    <artifactId>graph-similaritymeasure-cnrl</artifactId>
+    <artifactId>cnrl-pings</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <packaging>jar</packaging>
@@ -49,6 +49,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.5</version>
+        </dependency>
+
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
@@ -67,6 +73,14 @@
                     <target>1.8</target>
                     <fork>true</fork>
                     <executable>C:\Program Files\Java\jdk1.8.0_221\bin\javac</executable>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.3.1</version>
+                <configuration>
+                    <outputDirectory>C:\Users\shashika\.Neo4jDesktop\neo4jDatabases\database-1d8ac321-5437-4d8e-8dcd-f017036175f4\installation-3.5.6\plugins</outputDirectory>
                 </configuration>
             </plugin>
             <plugin>
