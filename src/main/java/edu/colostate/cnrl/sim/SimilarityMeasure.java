@@ -8,10 +8,7 @@ import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 
@@ -78,13 +75,6 @@ public class SimilarityMeasure {
                 if(score >= similarityScore){
                     matchedGraphs.add(matchedGraph.getAllNodes());
                 }
-//                else{
-//                    List<Node> neighbourNodes = searchForLinkedNeighbourNodes(matchedGraph.getAllNodes());
-//                    List<List<Node>> neighbourMatchedGraphs = getNeighbourMatchedGraphs(neighbourNodes, queryGraphResult, matchedGraph, similarityScore);
-//                    if(neighbourMatchedGraphs != null){
-//                            matchedGraphs.addAll(neighbourMatchedGraphs);
-//                    }
-//                }
             }
         }
         return matchedGraphs;

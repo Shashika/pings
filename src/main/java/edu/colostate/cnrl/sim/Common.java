@@ -100,7 +100,7 @@ class Common {
 
             for (Node dataNode : dataGraph) {
 
-                if (common.matchNode(queryNode, dataNode, matchedGraph, allMatchedNodes, activityNodes, true)) {
+                if (matchNode(queryNode, dataNode, matchedGraph, allMatchedNodes, activityNodes, true)) {
 
                     Iterator<Relationship> queryRelationships = queryNode.getRelationships(Direction.OUTGOING).iterator();
                     while (queryRelationships.hasNext()) {
@@ -196,6 +196,7 @@ class Common {
             }
             else {
                 boolean isAttrsMatched = true;
+                //In this version, (PINGS 1.0), we assume that there is only one property is considered for similarity.
                 for(String a: attrs){
                     String queryPropertyName = (String)queryNode.getProperty(a);
                     String dataPropertyName = (String)dataNode.getProperty(a);
