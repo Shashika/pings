@@ -33,16 +33,16 @@ public class SimilarityMeasure {
     public Stream<NodeListResult> similarityMeasure(@Name("similarityScore") double similarityScore,
                                                     @Name("redFlagMultiple") double redFlagMultiple,
                                                     @Name("queryLabel") String queryLabel,
-                                                    @Name("queryForcusLabel") String queryFocusLabel){
+                                                    @Name("queryFocusLabel") String queryFocusLabel){
 
         this.redFlagMultiple = redFlagMultiple;
         this.queryLabel = Label.label(queryLabel);
         this.queryFocusLabel = Label.label(queryFocusLabel);
 
-        Common common = new Common(this.db, configList, this.queryLabel, this.queryFocusLabel, NeighbourRelType,
+        Common common = new Common(this.db, this.queryLabel, this.queryFocusLabel, NeighbourRelType,
                 ActivityNodeType, this.redFlagMultiple, RedFlag, configFileName);
-
         this.configList = common.readConfigurations();
+        common.setConfigList(configList);
 
         QueryGraphResult queryGraph = common.initializeQueryGraph();
 

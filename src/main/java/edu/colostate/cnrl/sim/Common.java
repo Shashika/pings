@@ -24,10 +24,9 @@ class Common {
     private String RedFlag;
     private String configFileName;
 
-    public Common(GraphDatabaseAPI db, Map<String, List<String>> configList, Label queryLabel, Label queryFocusLabel,
+    public Common(GraphDatabaseAPI db, Label queryLabel, Label queryFocusLabel,
                   String NeighbourRelType, String ActivityNodeType, double redFlagMultiple, String RedFlag, String configFileName) {
         this.db = db;
-        this.configList = configList;
         this.queryLabel = queryLabel;
         this.queryFocusLabel = queryFocusLabel;
         this.NeighbourRelType = NeighbourRelType;
@@ -312,5 +311,13 @@ class Common {
             }
         }
         return matchScore;
+    }
+
+    public Map<String, List<String>> getConfigList() {
+        return configList;
+    }
+
+    public void setConfigList(Map<String, List<String>> configList) {
+        this.configList = configList;
     }
 }

@@ -31,16 +31,16 @@ public class NeighborhoodMeasure {
     public Stream<NodeListResult> neighborhoodMeasure(@Name("similarityScore") double similarityScore,
                                                     @Name("redFlagMultiple") double redFlagMultiple,
                                                     @Name("queryLabel") String queryLabel,
-                                                    @Name("queryForcusLabel") String queryFocusLabel){
+                                                    @Name("queryFocusLabel") String queryFocusLabel){
 
         this.redFlagMultiple = redFlagMultiple;
         this.queryLabel = Label.label(queryLabel);
         this.queryFocusLabel = Label.label(queryFocusLabel);
 
-        Common common = new Common(this.db, configList, this.queryLabel, this.queryFocusLabel, NeighbourRelType,
+        Common common = new Common(this.db, this.queryLabel, this.queryFocusLabel, NeighbourRelType,
                 ActivityNodeType, this.redFlagMultiple, RedFlag, configFileName);
-
         this.configList = common.readConfigurations();
+        common.setConfigList(configList);
 
         QueryGraphResult queryGraph = common.initializeQueryGraph();
 
@@ -125,7 +125,7 @@ public class NeighborhoodMeasure {
         List<List<Node>> eligibleNeighbourGraphList = new LinkedList<>();
         eligibleNeighbourGraphList.add(initialMatchedGraph.getAllNodes());
 
-        for(Node node : neighbourNodes ){
+        for(Node node : neighbourNodes){
 
             MatchedGraph matchedGraph = common.searchSimilarGraphs(common, node, queryResult.getAllNodes());
             int nodeVotes[] = updateVotes(queryResult.getActivityNodes(), matchedGraph.getActivityNodes());
