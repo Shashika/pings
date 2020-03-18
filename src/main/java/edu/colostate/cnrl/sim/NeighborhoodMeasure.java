@@ -62,7 +62,7 @@ public class NeighborhoodMeasure {
 
         while (qfNodes.hasNext()) {
             Node qfNode = qfNodes.next();
-            MatchedGraph matchedGraph = common.searchSimilarGraphs(common, qfNode, queryGraph);
+            MatchedGraph matchedGraph = common.searchSimilarGraphs(qfNode, queryGraph);
 
             if(matchedGraph!= null){
 
@@ -127,7 +127,7 @@ public class NeighborhoodMeasure {
 
         for(Node node : neighbourNodes){
 
-            MatchedGraph matchedGraph = common.searchSimilarGraphs(common, node, queryResult.getAllNodes());
+            MatchedGraph matchedGraph = common.searchSimilarGraphs(node, queryResult.getAllNodes());
             int nodeVotes[] = updateVotes(queryResult.getActivityNodes(), matchedGraph.getActivityNodes());
 
             if(checkVoteEligibility(initialVotes, nodeVotes) && !checkIndividualStrength(nodeVotes, similarityScore)){

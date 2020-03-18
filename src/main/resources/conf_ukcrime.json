@@ -1,0 +1,23 @@
+{
+  "nodes": [
+    {
+      "label": "Crime",
+      "attrs": ["type"]
+    },
+    {
+      "label": "Location",
+      "attrs": []
+    },
+    {
+      "label": "Person",
+      "attrs": []
+    }
+  ],
+  "red_flag": {
+    "label": "",
+    "attrs": []
+  },
+  "neighbour_relationship_type": "",
+  "activity_node_type": "Crime",
+  "identifier_type": "id"
+}

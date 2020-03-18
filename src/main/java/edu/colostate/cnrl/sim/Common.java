@@ -1,6 +1,7 @@
 package edu.colostate.cnrl.sim;
 
 import com.google.gson.Gson;
+import org.neo4j.cypher.internal.frontend.v2_3.ast.functions.Str;
 import org.neo4j.graphdb.*;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
@@ -20,9 +21,15 @@ class Common {
     private Label queryFocusLabel;
     private String NeighbourRelType;
     private String ActivityNodeType;
+    private String IdentifierType;
     private double redFlagMultiple;
     private String RedFlag;
     private String configFileName;
+    private String entity;
+    private String identifier;
+    private String identifierName;
+    private String relationShipToFocus;
+    private boolean isOutgoingDirFocusToAct = false;
 
     public Common(GraphDatabaseAPI db, Label queryLabel, Label queryFocusLabel,
                   String NeighbourRelType, String ActivityNodeType, double redFlagMultiple, String RedFlag, String configFileName) {
@@ -36,13 +43,28 @@ class Common {
         this.configFileName = configFileName;
     }
 
+    public Common(GraphDatabaseAPI db, String entity, String identifier, String identifierName, String relationShipToFocus,
+                  String NeighbourRelType, String ActivityNodeType, String IdentifierType, double redFlagMultiple, String RedFlag, String configFileName) {
+        this.db = db;
+        this.entity = entity;
+        this.identifier = identifier;
+        this.identifierName = identifierName;
+        this.relationShipToFocus = relationShipToFocus;
+        this.NeighbourRelType = NeighbourRelType;
+        this.ActivityNodeType = ActivityNodeType;
+        this.IdentifierType = IdentifierType;
+        this.redFlagMultiple = redFlagMultiple;
+        this.RedFlag = RedFlag;
+        this.configFileName = configFileName;
+    }
+
     public Map<String, List<String>> readConfigurations() {
 
         Conf conf = null;
         Map<String, List<String>> configs = new HashMap<>();
         InputStream in = getClass().getResourceAsStream(configFileName);
-        BufferedReader streamReader = null;
-        StringBuilder responseStrBuilder = null;
+        BufferedReader streamReader;
+        StringBuilder responseStrBuilder;
         try {
             streamReader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
             responseStrBuilder = new StringBuilder();
@@ -76,14 +98,18 @@ class Common {
         List<String> nodeType = new ArrayList<>();
         nodeType.add(conf.getActivity_node_type());
 
+        List<String> identifierType = new ArrayList<>();
+        identifierType.add(conf.getIdentifier_type());
+
         configs.put(NeighbourRelType, relType);
         configs.put(ActivityNodeType, nodeType);
+        configs.put(IdentifierType, identifierType);
 
         return configs;
     }
 
 
-    public MatchedGraph searchSimilarGraphs(Common common, Node matchingRootNode, List<Node> queryGraph) {
+    public MatchedGraph searchSimilarGraphs(Node matchingRootNode, List<Node> queryGraph) {
 
         MatchedGraph matchedGraph = new MatchedGraph();
         List<Node> allMatchedNodes = new LinkedList<>();
@@ -109,7 +135,7 @@ class Common {
 
                         while (dataRelationships.hasNext()) {
                             Relationship dataRelationship = dataRelationships.next();
-                            Node matchedEndNode = common.matchEdge(queryRelationship, dataRelationship, matchedGraph, allMatchedNodes, activityNodes);
+                            Node matchedEndNode = matchEdge(queryRelationship, dataRelationship, matchedGraph, allMatchedNodes, activityNodes, true);
 
                             if(matchedEndNode != null && !isMatchedNodeAlreadyInList(matchedNodeList, matchedEndNode)){
                                 matchedNodeList.add(matchedEndNode);
@@ -126,6 +152,64 @@ class Common {
         matchedGraph.setActivityNodes(activityNodes);
 
         return matchedGraph;
+    }
+
+    public MatchedGraph searchImplicitSimilarGraphs(Node matchingRootNode, List<Node> queryGraph) {
+
+        MatchedGraph matchedGraph = new MatchedGraph();
+        List<Node> allMatchedNodes = new LinkedList<>();
+        List<Node> activityNodes = new LinkedList<>();
+
+        List<Node> dataGraph = new CopyOnWriteArrayList<>();
+        dataGraph.add(matchingRootNode);
+
+        for(int c = 0; c < queryGraph.size(); c++){
+
+            Node queryNode = queryGraph.get(c);
+            List<Node> matchedNodeList = new ArrayList<>();
+
+            for (Node dataNode : dataGraph) {
+
+                if (matchNode(queryNode, dataNode, matchedGraph, allMatchedNodes, activityNodes, true)) {
+
+                    Iterator<Relationship> queryRelationships;
+                    if(isOutgoingDirFocusToAct)
+                        queryRelationships = queryNode.getRelationships(Direction.OUTGOING).iterator();
+                    else
+                        queryRelationships = queryNode.getRelationships(Direction.INCOMING).iterator();
+
+                    while (queryRelationships.hasNext()) {
+
+                        Relationship queryRelationship = queryRelationships.next();
+
+                        Iterator<Relationship> dataRelationships;
+                        if(isOutgoingDirFocusToAct)
+                            dataRelationships = dataNode.getRelationships(Direction.OUTGOING).iterator();
+                        else
+                            dataRelationships = dataNode.getRelationships(Direction.INCOMING).iterator();
+
+
+                        while (dataRelationships.hasNext()) {
+                            Relationship dataRelationship = dataRelationships.next();
+
+                            Node matchedEndNode = matchEdge(queryRelationship, dataRelationship, matchedGraph, allMatchedNodes, activityNodes, isOutgoingDirFocusToAct);
+
+                            if(matchedEndNode != null && !isMatchedNodeAlreadyInList(matchedNodeList, matchedEndNode)){
+                                matchedNodeList.add(matchedEndNode);
+                            }
+                        }
+                    }
+                    //remove matched node
+                    dataGraph.remove(dataNode);
+                }
+            }
+            addNewMatchedListToDataGraph(dataGraph, matchedNodeList);
+        }
+        matchedGraph.setAllNodes(allMatchedNodes);
+        matchedGraph.setActivityNodes(activityNodes);
+
+        return matchedGraph;
+
     }
 
     //A node contain on matched list only one time
@@ -150,27 +234,35 @@ class Common {
     }
 
     public Node matchEdge(Relationship queryRelationship, Relationship dataRelationship,
-                           MatchedGraph matchedGraph, List<Node> allMatchedNodes, List<Node> activityNodes) {
+                           MatchedGraph matchedGraph, List<Node> allMatchedNodes, List<Node> activityNodes, boolean isOutgoingRel) {
 
         RelationshipType queryRelationshipType = queryRelationship.getType();
         RelationshipType dataRelationshipType = dataRelationship.getType();
 
         boolean isMatched = false;
         Node matchedEndNode = null;
-        Node dataEndNode = null;
+        Node otherDataNode = null;
+        Node otherQueryNode;
 
         //matchRelation
         if(queryRelationshipType.name().toLowerCase().equals(dataRelationshipType.name().toLowerCase())){
 
             //match end nodes
-            Node queryEndNode = queryRelationship.getEndNode();
-            dataEndNode = dataRelationship.getEndNode();
+            if(isOutgoingRel){
+                otherQueryNode = queryRelationship.getEndNode();
+                otherDataNode = dataRelationship.getEndNode();
+            }
+            else{
+                otherQueryNode = queryRelationship.getStartNode();
+                otherDataNode = dataRelationship.getStartNode();
+            }
 
-            isMatched = matchNode(queryEndNode, dataEndNode, matchedGraph, allMatchedNodes, activityNodes, false);
+
+            isMatched = matchNode(otherQueryNode, otherDataNode, matchedGraph, allMatchedNodes, activityNodes, false);
         }
 
         if(isMatched){
-            matchedEndNode = dataEndNode;
+            matchedEndNode = otherDataNode;
         }
 
         return matchedEndNode;
@@ -198,9 +290,13 @@ class Common {
                 //In this version, (PINGS 1.0), we assume that there is only one property is considered for similarity.
                 for(String a: attrs){
                     String queryPropertyName = (String)queryNode.getProperty(a);
-                    String dataPropertyName = (String)dataNode.getProperty(a);
+                    //Due to the inconsistency of datasets
+                    String dataPropertyName = null;
+                    if(dataNode.hasProperty(a)) {
+                        dataPropertyName = (String) dataNode.getProperty(a);
+                    }
 
-                    if(!queryPropertyName.toLowerCase().equals(dataPropertyName.toLowerCase())) {
+                    if(dataPropertyName == null || !queryPropertyName.toLowerCase().equals(dataPropertyName.toLowerCase())) {
                         isAttrsMatched = false;
                     }
                 }
@@ -281,15 +377,50 @@ class Common {
         return results;
     }
 
+    public QueryGraphResult initializeImplicitQueryGraph() {
+
+        QueryGraphResult results = new QueryGraphResult();
+
+        List<Node> nodeList = new ArrayList<>();
+
+        Node focusNode;
+        if(this.identifier.equals(configList.get(IdentifierType).get(0))){
+            focusNode = db.getNodeById(Long.valueOf(this.identifierName));
+        }
+        else {
+            focusNode = db.findNode(Label.label(this.entity), this.identifier, this.identifierName);
+        }
+        nodeList.add(focusNode);
+
+        Iterator<Relationship> relationships = focusNode.getRelationships(Direction.BOTH).iterator();
+        while (relationships.hasNext()) {
+
+            Relationship relationship = relationships.next();
+            RelationshipType relationshipType = relationship.getType();
+            if(relationshipType.name().equals(this.relationShipToFocus)){
+
+                //check direction (focus to activity), Assume there is only one direction
+                isOutgoingDirFocusToAct = focusNode.hasRelationship(Direction.OUTGOING, RelationshipType.withName(this.relationShipToFocus));
+
+                Node activityNode = relationship.getOtherNode(focusNode);
+                nodeList.add(activityNode);
+            }
+        }
+        results.setAllNodes(nodeList);
+        return results;
+    }
+
     private double getMatchedNodeWeight(Node node) {
 
-        String nodeType = (String)node.getProperty(configList.get(RedFlag).get(0));
-        if(nodeType.equals(configList.get(RedFlag).get(1))){
-            return this.redFlagMultiple;
+        String nodeType;
+        if(configList.get(RedFlag).size()>0){
+            nodeType = (String)node.getProperty(configList.get(RedFlag).get(0));
+
+            if(nodeType.equals(configList.get(RedFlag).get(1))){
+                return this.redFlagMultiple;
+            }
         }
-        else{
-            return  1;
-        }
+        return  1;
     }
 
     public double getTotalWeight(List<Node> graph, double redFlagMultiple) {
@@ -301,8 +432,12 @@ class Common {
             //similarity measure calculates only for activity nodes
             if(getNodeLabelName(node).equals(configList.get(ActivityNodeType).get(0))){
 
-                String nodeType = (String)node.getProperty(configList.get(RedFlag).get(0));
-                if(nodeType.equals(configList.get(RedFlag).get(1))){
+                String nodeType = null;
+                if(configList.get(RedFlag).size() > 0){
+                    nodeType = (String)node.getProperty(configList.get(RedFlag).get(0));
+                }
+
+                if(nodeType != null && nodeType.equals(configList.get(RedFlag).get(1))){
                     matchScore += redFlagMultiple;
                 }
                 else{

@@ -22,5 +22,6 @@
       "attrs": ["type", "RF"]
   },
   "neighbour_relationship_type": "KNOWS",
-  "activity_node_type": "Indicator"
+  "activity_node_type": "Indicator",
+  "identifier_type": ""
 }

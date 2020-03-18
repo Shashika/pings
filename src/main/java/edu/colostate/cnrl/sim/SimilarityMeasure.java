@@ -1,6 +1,5 @@
 package edu.colostate.cnrl.sim;
 
-import com.google.gson.Gson;
 import org.neo4j.graphdb.*;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.Log;
@@ -66,7 +65,7 @@ public class SimilarityMeasure {
 
         while (qfNodes.hasNext()) {
             Node qfNode = qfNodes.next();
-            MatchedGraph matchedGraph = common.searchSimilarGraphs(common, qfNode, queryGraph);
+            MatchedGraph matchedGraph = common.searchSimilarGraphs(qfNode, queryGraph);
 
             if(matchedGraph!= null){
 

@@ -2,10 +2,11 @@ package edu.colostate.cnrl.sim;
 
 public class Conf {
 
-    NodeDetails[] nodes;
-    NodeDetails red_flag;
-    String neighbour_relationship_type;
-    String activity_node_type;
+    private NodeDetails[] nodes;
+    private NodeDetails red_flag;
+    private String neighbour_relationship_type;
+    private String activity_node_type;
+    private String identifier_type;
 
     public NodeDetails[] getNodes() {
         return nodes;
@@ -37,5 +38,13 @@ public class Conf {
 
     public void setActivity_node_type(String activity_node_type) {
         this.activity_node_type = activity_node_type;
+    }
+
+    public String getIdentifier_type() {
+        return identifier_type;
+    }
+
+    public void setIdentifier_type(String identifier_type) {
+        this.identifier_type = identifier_type;
     }
 }
