@@ -1,7 +1,6 @@
 package edu.colostate.cnrl.sim;
 
 import com.google.gson.Gson;
-import org.neo4j.cypher.internal.frontend.v2_3.ast.functions.Str;
 import org.neo4j.graphdb.*;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
@@ -413,7 +412,7 @@ class Common {
     private double getMatchedNodeWeight(Node node) {
 
         String nodeType;
-        if(configList.get(RedFlag).size()>0){
+        if(configList.get(RedFlag) != null && configList.get(RedFlag).size()>0){
             nodeType = (String)node.getProperty(configList.get(RedFlag).get(0));
 
             if(nodeType.equals(configList.get(RedFlag).get(1))){
@@ -433,7 +432,7 @@ class Common {
             if(getNodeLabelName(node).equals(configList.get(ActivityNodeType).get(0))){
 
                 String nodeType = null;
-                if(configList.get(RedFlag).size() > 0){
+                if(configList.get(RedFlag) != null && configList.get(RedFlag).size() > 0){
                     nodeType = (String)node.getProperty(configList.get(RedFlag).get(0));
                 }
 
