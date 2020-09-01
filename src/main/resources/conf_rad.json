@@ -1,25 +1,15 @@
 {
   "nodes": [
     {
-      "label": "User",
+      "label": "Person",
       "attrs": []
     },
     {
       "label": "Indicator",
       "attrs": ["name"]
-    },
-    {
-      "label": "SM_Account",
-      "attrs": []
-    },
-    {
-      "label": "Post",
-      "attrs":  []
     }
   ],
   "red_flag": {
-      "label": "Indicator",
-      "attrs": ["type", "RF"]
   },
   "neighbour_relationship_type": "KNOWS",
   "activity_node_type": "Indicator",
