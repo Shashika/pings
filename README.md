@@ -26,9 +26,9 @@ Identify individuals that satisfy a given query graph.
 Identify groups that collectively satisfy a given query graph. 
 ##### 2. neighborhoodSimilarity(similarityThreshold, redFlagMultiple, queryLabel, queryFocusLabel)
 
-###Example
+### Example
 
-######Query Graph
+###### Query Graph
 
 ![title](query_graph.png)
 
@@ -38,7 +38,7 @@ Identify groups that collectively satisfy a given query graph.
 - *eg : neighborhoodSimilarity(0.7, 1, ‘l query’, ‘Person’)*
 ![title](neighbour_inexact.png)
 
-###Input Parameters
+### Input Parameters
 
 - *similarityThreshold* – A similarity score is calculated for each user based on his activities. It is normalized to range (0,1). 
 The query graph score similarityThreshold is used to identify matching subgraphs.
@@ -52,14 +52,14 @@ Therefore, the query graphs can be easily updated for different experiments, whi
 label of the person, *‘Person’*. Then the algo- rithm scans all the persons and evaluates the similarity measure for each person.
 
 
-###Prerequisites
+### Prerequisites
 
 You have to install both Java and Neo4j graph database. 
 - Java version >= 8
 - Neo4j >= 3.2
 
 
-###Contact Us
+### Contact Us
 We are Computer Networking Research Lab (CNRL), Department of Electrical & Computer Engineering, Colorado State University, USA.\
 [cnrl@engr.colostate.edu](mailto:cnrl@engr.colostate.edu) \
 [shashika@colostate.edu](mailto:shashika@colostate.edu)
