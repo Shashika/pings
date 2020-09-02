@@ -30,13 +30,13 @@ Identify groups that collectively satisfy a given query graph.
 
 ###### Query Graph
 
-![title](query_graph.png)
+![](query_graph.png)
 
-- *eg : individualSimilarity(0.7, 2, ‘l query’, ‘Person’)*
-![title](inexact_7.png)
+- *eg : individualSimilarity(0.7, 2, ‘l query’, ‘Person’)* <br>
+![](inexact_7.png)
 
-- *eg : neighborhoodSimilarity(0.7, 1, ‘l query’, ‘Person’)*
-![title](neighbour_inexact.png)
+- *eg : neighborhoodSimilarity(0.7, 1, ‘l query’, ‘Person’)* <br>
+![](neighbour_inexact.png)
 
 ### Input Parameters
 
