@@ -1,7 +1,7 @@
 ## PINGS 1.0 (<u>P</u>rocedures for <u>IN</u>vestigative <u>G</u>raph <u>S</u>earch)
 
 An investigative pattern detection algorithm, which based on sub-graph pattern matching using a scoring mechanism and implemented on [Neo4j](https://neo4j.com) graph database.
-We implemented different [Neo4j user-defined procedures](https://neo4j.com/docs/java-reference/current/extending-neo4j/procedures-and-functions/procedures/) 
+We implemented several [Neo4j user-defined procedures](https://neo4j.com/docs/java-reference/current/extending-neo4j/procedures-and-functions/procedures/) 
 to address different aspects of the investigative search. The investigative algorithm can be widely used to evaluate
  and track individuals or groups based on latent or emergent behaviors
   in homeland security, cyber security, behavioral health, consumer analytics, etc. 
@@ -49,7 +49,7 @@ The *redFlagMultiple* (≥ 1) is used to multiply (weight) high-risk activities 
 This allows us to identify a query graph within the database by appending another label (eg: *‘l_query’*). 
 Therefore, the query graphs can be easily updated for different experiments, which the algorithm picks up within the database itself.
 - *queryFocusLabel* – The node label indicates the starting point of the algorithm. In our context, we have to provide the 
-label of the person, *‘Person’*. Then the algo- rithm scans all the persons and evaluates the similarity measure for each person.
+label of the person, *‘Person’*. Then the algorithm scans all the persons and evaluates the similarity measure for each person.
 
 
 ### Prerequisites
@@ -57,6 +57,9 @@ label of the person, *‘Person’*. Then the algo- rithm scans all the persons 
 You have to install both Java and Neo4j graph database. 
 - Java version >= 8
 - Neo4j >= 3.2
+
+### License
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License (GNU GPLv3).
 
 
 ### Contact Us
